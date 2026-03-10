@@ -63,19 +63,13 @@ function Chat() {
         <nav className="sidebar-bottom" aria-label="Sidebar menu">
           <button className="sidebar-link" type="button">
             <span className="sidebar-icon">◎</span>
-            <span>Upgrade to Plus</span>
-            <span className="pill">NEW</span>
+            <span>Upgrade to Plus </span>
+            <span className="pill">Next update!</span>
           </button>
 
-          <button className="sidebar-link" type="button">
-            <span className="sidebar-icon">☼</span>
-            <span>Light mode</span>
-          </button>
+         
 
-          <button className="sidebar-link" type="button">
-            <span className="sidebar-icon">↗</span>
-            <span>Updates &amp; FAQ</span>
-          </button>
+         
 
           <button className="sidebar-link" type="button">
             <span className="sidebar-icon">↩</span>

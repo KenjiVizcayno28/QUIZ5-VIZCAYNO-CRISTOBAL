@@ -1,0 +1,124 @@
+:root {
+  --panel: #1f1f1f;
+  --panel-border: #343434;
+  --text-main: #f2f2f2;
+  --text-muted: #c9c9c9;
+  --accent: #ededed;
+  --danger-bg: #401f1f;
+  --danger-text: #ffd2d2;
+  --success-bg: #173322;
+  --success-text: #c9ffd8;
+  --info-bg: #1f2937;
+  --info-text: #d8e7ff;
+}
+
+.auth-screen-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top right, #313131 0%, #1f1f1f 45%, #151515 100%);
+  padding: 24px;
+}
+
+.auth-card {
+  width: min(100%, 420px);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text-main);
+}
+
+.auth-card h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.auth-field input {
+  background: #151515;
+  color: var(--text-main);
+  border: 1px solid #3f3f3f;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 14px;
+}
+
+.auth-submit {
+  margin-top: 4px;
+  border: none;
+  border-radius: 10px;
+  min-height: 44px;
+  background: var(--accent);
+  color: #1a1a1a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-footer {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.auth-footer a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.message {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.message-error {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.message-success {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.message-info {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+.loader-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid #6f6f6f;
+  border-top-color: #151515;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
