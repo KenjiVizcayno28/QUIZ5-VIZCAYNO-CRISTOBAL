@@ -18,6 +18,42 @@ const persistUser = (user) => {
   localStorage.removeItem('userInfo');
 };
 
+const defaultConversations = [
+  {
+    id: 'welcome-thread',
+    title: 'Welcome to HAIKU Bot',
+    preview: 'Ask anything and start your first conversation.',
+    messages: [],
+  },
+];
+
+const safeParseConversations = () => {
+  try {
+    const raw = localStorage.getItem('conversations');
+    if (!raw) {
+      return defaultConversations;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return defaultConversations;
+    }
+
+    return parsed.map((item) => ({
+      id: item.id,
+      title: item.title || 'New conversation',
+      preview: item.preview || 'Start chatting with the HAIKU Bot.',
+      messages: Array.isArray(item.messages) ? item.messages : [],
+    }));
+  } catch (error) {
+    return defaultConversations;
+  }
+};
+
+const persistConversations = (items) => {
+  localStorage.setItem('conversations', JSON.stringify(items));
+};
+
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
   async ({ username, password }, thunkAPI) => {
@@ -77,6 +113,17 @@ const authSlice = createSlice({
       state.error = null;
       persistUser(null);
     },
+    loginBypass: (state) => {
+      const bypassUser = {
+        name: 'Guest User',
+        email: 'guest@local.dev',
+        bypass: true,
+      };
+
+      state.userInfo = bypassUser;
+      state.error = null;
+      persistUser(bypassUser);
+    },
     clearAuthError: (state) => {
       state.error = null;
     },
@@ -112,13 +159,7 @@ const authSlice = createSlice({
   },
 });
 
-const initialConversations = [
-  {
-    id: 'welcome-thread',
-    title: 'Welcome to HAIKU Bot',
-    preview: 'Ask anything and start your first conversation.',
-  },
-];
+const initialConversations = safeParseConversations();
 
 const conversationSlice = createSlice({
   name: 'conversation',
@@ -131,27 +172,54 @@ const conversationSlice = createSlice({
       reducer: (state, action) => {
         state.items.unshift(action.payload);
         state.activeId = action.payload.id;
+        persistConversations(state.items);
       },
       prepare: () => ({
         payload: {
           id: nanoid(),
           title: 'New conversation',
           preview: 'Start chatting with the HAIKU Bot.',
+          messages: [],
         },
       }),
     },
     setActiveConversation: (state, action) => {
       state.activeId = action.payload;
     },
+    appendConversationMessage: (state, action) => {
+      const { conversationId, role, text } = action.payload;
+      const conversation = state.items.find((item) => item.id === conversationId);
+
+      if (!conversation) {
+        return;
+      }
+
+      if (!Array.isArray(conversation.messages)) {
+        conversation.messages = [];
+      }
+
+      conversation.messages.push({ role, text });
+
+      if (role === 'user') {
+        if (conversation.title === 'New conversation') {
+          conversation.title = text.slice(0, 40);
+        }
+
+        conversation.preview = text.slice(0, 60);
+      }
+
+      persistConversations(state.items);
+    },
     clearConversations: (state) => {
-      state.items = [];
-      state.activeId = null;
+      state.items = defaultConversations.map((item) => ({ ...item, messages: [] }));
+      state.activeId = state.items[0]?.id || null;
+      persistConversations(state.items);
     },
   },
 });
 
-export const { logout, clearAuthError } = authSlice.actions;
-export const { addConversation, setActiveConversation, clearConversations } =
+export const { logout, loginBypass, clearAuthError } = authSlice.actions;
+export const { addConversation, setActiveConversation, appendConversationMessage, clearConversations } =
   conversationSlice.actions;
 
 const store = configureStore({

@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import ConversationItem from '../components/ConversationItem';
 import EmptyState from '../components/EmptyState';
-import { addConversation, logout, setActiveConversation } from '../store';
+import { addConversation, appendConversationMessage, logout, setActiveConversation } from '../store';
 import '../styles/home.css';
 
 function HomeScreen() {
@@ -11,11 +11,10 @@ function HomeScreen() {
   const navigate = useNavigate();
   const { userInfo } = useSelector((state) => state.auth);
   const { items, activeId } = useSelector((state) => state.conversation);
-
-  const activeConversation = useMemo(
-    () => items.find((item) => item.id === activeId),
-    [items, activeId]
-  );
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const activeConversation = items.find((item) => item.id === activeId);
+  const messages = activeConversation?.messages || [];
 
   const onLogout = () => {
     dispatch(logout());
@@ -38,6 +37,59 @@ function HomeScreen() {
     }
 
     dispatch(setActiveConversation(id));
+  };
+
+  const sendMessage = async (event) => {
+    event.preventDefault();
+
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || loading || !activeId) {
+      return;
+    }
+
+    dispatch(
+      appendConversationMessage({
+        conversationId: activeId,
+        role: 'user',
+        text: trimmedMessage,
+      })
+    );
+    setMessage('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: trimmedMessage, history: messages }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Something went wrong.');
+      }
+
+      dispatch(
+        appendConversationMessage({
+          conversationId: activeId,
+          role: 'ai',
+          text: data.reply,
+        })
+      );
+    } catch (error) {
+      dispatch(
+        appendConversationMessage({
+          conversationId: activeId,
+          role: 'ai',
+          text: error.message || 'Failed to contact server.',
+        })
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -94,13 +146,37 @@ function HomeScreen() {
 
         {!userInfo ? (
           <EmptyState isGuest />
-        ) : !activeConversation ? (
-          <EmptyState />
         ) : (
-          <section className="conversation-panel" aria-label="Active conversation">
-            <h2>{activeConversation.title}</h2>
-            <p>{activeConversation.preview}</p>
-          </section>
+          <main className="chat-main">
+            <div className="chat-card">
+              <h1>The HAIKU Bot</h1>
+
+              <div className="chat-messages">
+                {messages.length === 0 && (
+                  <p className="placeholder">creates you a beautiful HAIKU.</p>
+                )}
+
+                {messages.map((item, index) => (
+                  <div key={index} className={`bubble ${item.role}`}>
+                    {item.text}
+                  </div>
+                ))}
+              </div>
+
+              <form className="chat-form" onSubmit={sendMessage}>
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="Type your message"
+                  disabled={loading}
+                />
+                <button type="submit" disabled={loading || !message.trim()}>
+                  {loading ? 'Sending...' : 'Send'}
+                </button>
+              </form>
+            </div>
+          </main>
         )}
       </main>
     </div>

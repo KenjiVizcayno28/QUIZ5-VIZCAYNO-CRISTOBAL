@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import FormComponent from '../components/FormComponent';
-import { clearAuthError, loginUser } from '../store';
+import { clearAuthError, loginBypass, loginUser } from '../store';
 
 const loginFields = [
   {
@@ -39,11 +39,17 @@ function LoginScreen() {
     dispatch(loginUser(formData));
   };
 
+  const handleLoginBypass = () => {
+    dispatch(loginBypass());
+  };
+
   return (
     <FormComponent
       title="Login"
       fields={loginFields}
       submitText="Sign in"
+      secondaryActionText="Bypass login (frontend only)"
+      onSecondaryAction={handleLoginBypass}
       footerText="Need an account?"
       footerLinkText="Register"
       footerLinkTo="/register"

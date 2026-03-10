@@ -8,6 +8,8 @@ function FormComponent({
   title,
   fields,
   submitText,
+  secondaryActionText,
+  onSecondaryAction,
   footerText,
   footerLinkText,
   footerLinkTo,
@@ -58,6 +60,17 @@ function FormComponent({
         <button type="submit" disabled={loading} className="auth-submit">
           {loading ? <Loader /> : submitText}
         </button>
+
+        {secondaryActionText && onSecondaryAction ? (
+          <button
+            type="button"
+            className="auth-secondary-btn"
+            onClick={onSecondaryAction}
+            disabled={loading}
+          >
+            {secondaryActionText}
+          </button>
+        ) : null}
 
         <p className="auth-footer">
           {footerText} <Link to={footerLinkTo}>{footerLinkText}</Link>

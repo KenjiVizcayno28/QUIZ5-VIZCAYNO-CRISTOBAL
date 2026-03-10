@@ -70,6 +70,21 @@
   cursor: not-allowed;
 }
 
+.auth-secondary-btn {
+  border: 1px solid #4a4a4a;
+  border-radius: 10px;
+  min-height: 42px;
+  background: #232323;
+  color: var(--text-main);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-secondary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .auth-footer {
   margin: 6px 0 0;
   font-size: 14px;
