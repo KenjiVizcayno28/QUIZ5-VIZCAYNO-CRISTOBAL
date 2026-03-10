@@ -14,21 +14,22 @@ MODEL_NAME = "gemini-2.5-flash-lite"
 
 SYSTEM_PROMPT = """
 You are an expert but friendly programming tutor specializing in:
-- Python and the Django / Django REST Framework ecosystem
-- JavaScript and the React.js ecosystem (hooks, components, state)
+- Making Haiku poems based on the topic that is given by the user
+- These Haiku poems are always 5-7-5 syllables and should be concise and creative
+- You should not include any explanations or additional text, just the Haiku poem itself
+- if the user gives only numbers, symbols, or any non-word characters in the topic, you should ignore them and only create the Haiku based on proper words.
 
 Your teaching style:
-- Use clear, beginner-friendly language and avoid unnecessary jargon.
-- Use short analogies or real-world examples to clarify concepts.
-- When showing code, add brief inline comments explaining each key line.
-- Keep answers focused and concise - avoid overwhelming beginners.
-- Be encouraging: mistakes are a normal part of learning.
+- Use clear, concise, and engaging language that is related to the topic at hand.
+- Use creative ideas to make the Haiku poems interesting and memorable.
+- Be patient and encouraging, providing positive reinforcement to the user for their efforts and progress.
+- Always respond in a friendly and supportive manner, making the learning experience enjoyable for the user.
 
 Scope -- THIS IS A STRICT RULE, NO EXCEPTIONS:
-- You ONLY answer questions about Python, Django, JavaScript, and React.js.
-- If the user asks about ANY other technology, framework, or topic - including but not limited to: Vue, Angular, Svelte, PHP, Ruby, Java, C++, machine learning, databases, CSS frameworks, cloud services, or anything else - you MUST REFUSE.
+- You ONLY give a 5-7-5 syllable poem Haiku based on the topic given by the user.
+- If the user asks about ANY other topic such as technology, framework, or topic - including but not limited to: Vue, Angular, Svelte, PHP, Ruby, Java, C++, machine learning, databases, CSS frameworks, cloud services, or anything else - you MUST REFUSE.
 - When refusing, respond with EXACTLY this message and nothing else:
-"I'm sorry! I'm only able to help with Python, Django, JavaScript, and React. Please ask me something new."
+"I'm sorry! I'm only able to help with making Haiku for the user. Please give me a new topic."
 - Do NOT provide a partial answer then refuse. Do NOT make exceptions for "related" or "similar" topics. REFUSE immediately and completely.
 """
 
@@ -44,13 +45,24 @@ def chat_view(request):
 
     title = request.data.get("title", "New Conversation").strip() or "New Conversation"
     user_message = request.data.get("message", "").strip()
+    conversation_id = request.data.get("conversation_id")
     if not user_message:
         return Response(
             {"detail": "'message' is required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    conversation = Conversation.objects.create(title=title, user=user)
+    if conversation_id:
+        try:
+            conversation = Conversation.objects.get(id=conversation_id, user=user)
+        except Conversation.DoesNotExist:
+            return Response(
+                {"detail": "Conversation not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+    else:
+        conversation = Conversation.objects.create(title=title, user=user)
+
     Message.objects.create(
         conversation=conversation,
         role=Message.ROLE_USER,
@@ -73,8 +85,15 @@ def chat_view(request):
         content=ai_reply,
     )
 
+    if conversation.title == "New Conversation":
+        conversation.title = user_message[:60]
+        conversation.save(update_fields=["title", "updated_at"])
+
     serialized = ConversationSerializer(conversation)
-    return Response(serialized.data, status=status.HTTP_201_CREATED)
+    return Response(
+        serialized.data,
+        status=status.HTTP_200_OK if conversation_id else status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET"])

@@ -6,9 +6,9 @@ import { clearAuthError, registerUser } from '../store';
 
 const registerFields = [
   {
-    name: 'name',
-    label: 'Full name',
-    placeholder: 'Enter your full name',
+    name: 'username',
+    label: 'Username',
+    placeholder: 'Choose a username',
   },
   {
     name: 'email',
@@ -57,7 +57,7 @@ function RegisterScreen() {
     setLocalError('');
     dispatch(
       registerUser({
-        name: formData.name,
+        username: formData.username,
         email: formData.email,
         password: formData.password,
       })

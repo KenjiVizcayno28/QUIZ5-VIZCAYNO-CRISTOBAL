@@ -1,23 +1,42 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import ConversationItem from '../components/ConversationItem';
 import EmptyState from '../components/EmptyState';
-import { addConversation, appendConversationMessage, logout, setActiveConversation } from '../store';
+import {
+  addConversation,
+  appendConversationMessage,
+  clearConversations,
+  fetchUserConversations,
+  logout,
+  mergeConversationFromServer,
+  setActiveConversation,
+} from '../store';
 import '../styles/home.css';
+
+const API_BASE = process.env.REACT_APP_API_BASE || 'http://127.0.0.1:8000';
 
 function HomeScreen() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { userInfo } = useSelector((state) => state.auth);
+  const { userInfo, accessToken } = useSelector((state) => state.auth);
   const { items, activeId } = useSelector((state) => state.conversation);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const activeConversation = items.find((item) => item.id === activeId);
   const messages = activeConversation?.messages || [];
 
+  useEffect(() => {
+    if (userInfo?.bypass || !accessToken) {
+      return;
+    }
+
+    dispatch(fetchUserConversations());
+  }, [dispatch, userInfo, accessToken]);
+
   const onLogout = () => {
     dispatch(logout());
+    dispatch(clearConversations());
     navigate('/login');
   };
 
@@ -58,25 +77,30 @@ function HomeScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chat/', {
+      const response = await fetch(`${API_BASE}/api/v1/conversation/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ message: trimmedMessage, history: messages }),
+        body: JSON.stringify({
+          message: trimmedMessage,
+          ...(activeId && !String(activeId).startsWith('local-')
+            ? { conversation_id: Number(activeId) }
+            : {}),
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong.');
+        throw new Error(data.detail || data.error || 'Something went wrong.');
       }
 
       dispatch(
-        appendConversationMessage({
-          conversationId: activeId,
-          role: 'ai',
-          text: data.reply,
+        mergeConversationFromServer({
+          conversation: data,
+          clientTempId: String(activeId).startsWith('local-') ? activeId : null,
         })
       );
     } catch (error) {
