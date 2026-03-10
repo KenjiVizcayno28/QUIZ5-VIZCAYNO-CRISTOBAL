@@ -1,74 +1,112 @@
 import os
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+
+from django.contrib.auth.models import AnonymousUser
 from google import genai
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from .models import Conversation, Message
+from .serializers import ConversationSerializer
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 MODEL_NAME = "gemini-2.5-flash-lite"
 
 SYSTEM_PROMPT = """
 You are an expert but friendly programming tutor specializing in:
-- Haiku creation
-- Perfecting the 5-7-5 syllable structure
+- Python and the Django / Django REST Framework ecosystem
+- JavaScript and the React.js ecosystem (hooks, components, state)
 
 Your teaching style:
-- Use clear, concise language that does not go far from the topic.
-- The 5-7-5 syllable structure is the most important aspect of a Haiku. Always prioritize it in your answer.
-- Be encouraging and supportive, especially when the user is struggling with the 5-7-5 structure.
+- Use clear, beginner-friendly language and avoid unnecessary jargon.
+- Use short analogies or real-world examples to clarify concepts.
+- When showing code, add brief inline comments explaining each key line.
+- Keep answers focused and concise - avoid overwhelming beginners.
+- Be encouraging: mistakes are a normal part of learning.
 
 Scope -- THIS IS A STRICT RULE, NO EXCEPTIONS:
-- You ONLY answer questions about Haiku creation and the 5-7-5 syllable structure.
-- If the user asks about ANY other topic - including but not limited to: Python, Django, JavaScript, React.js, Vue, Angular, Svelte, PHP, Ruby, Java, C++, machine learning, databases, CSS frameworks, cloud services, or anything else - you MUST REFUSE.
+- You ONLY answer questions about Python, Django, JavaScript, and React.js.
+- If the user asks about ANY other technology, framework, or topic - including but not limited to: Vue, Angular, Svelte, PHP, Ruby, Java, C++, machine learning, databases, CSS frameworks, cloud services, or anything else - you MUST REFUSE.
 - When refusing, respond with EXACTLY this message and nothing else:
-"I'm sorry! I'm only able to help with Haiku creation and the 5-7-5 syllable structure. Please ask me something new."
+"I'm sorry! I'm only able to help with Python, Django, JavaScript, and React. Please ask me something new."
 - Do NOT provide a partial answer then refuse. Do NOT make exceptions for "related" or "similar" topics. REFUSE immediately and completely.
 """
-@csrf_exempt
-@require_http_methods(["POST"])
+
+
+@api_view(["POST"])
 def chat_view(request):
-    """Handle a chat request from the frontend.
-
-    Expected request body (JSON):
-    {
-        "message": "Hello, what is a Haiku?"
-    }
-
-    Returns (JSON):
-    {
-        "reply": "A Haiku is a traditional Japanese poem ..."
-    }
-    or 
-    {
-        "error": "I'm sorry! I'm only able to help with Haiku creation and the 5-7-5 syllable structure. Please ask me something new."
-    }
-    """
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON in request body."}, status=400)
-
-    user_message = data.get("message", "").strip()
-    if not user_message:
-        return JsonResponse({"error": "Message cannot be empty."}, status=400)
-
-    try:
-        # Prepend system prompt to user message
-        full_message = f"{SYSTEM_PROMPT}\n\nUser question: {user_message}"
-        
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=full_message,
+    user = request.user
+    if isinstance(user, AnonymousUser):
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
         )
 
-        ai_reply = response.text
-    
-    except Exception as e:
-        error_msg = str(e)
-        print(f"Error calling Gemini API: {error_msg}")
-        print(f"API Key present: {bool(os.environ.get('GEMINI_API_KEY'))}")
-        return JsonResponse({"error": f"Failed to get response from AI model: {error_msg}"}, status=500)
+    title = request.data.get("title", "New Conversation").strip() or "New Conversation"
+    user_message = request.data.get("message", "").strip()
+    if not user_message:
+        return Response(
+            {"detail": "'message' is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    return JsonResponse({"reply": ai_reply})
+    conversation = Conversation.objects.create(title=title, user=user)
+    Message.objects.create(
+        conversation=conversation,
+        role=Message.ROLE_USER,
+        content=user_message,
+    )
+
+    try:
+        full_message = f"{SYSTEM_PROMPT}\n\nUser question: {user_message}"
+        ai_response = client.models.generate_content(model=MODEL_NAME, contents=full_message)
+        ai_reply = ai_response.text or ""
+    except Exception as error:
+        return Response(
+            {"detail": f"Failed to get response from AI model: {error}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    Message.objects.create(
+        conversation=conversation,
+        role=Message.ROLE_ASSISTANT,
+        content=ai_reply,
+    )
+
+    serialized = ConversationSerializer(conversation)
+    return Response(serialized.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+def conversation_list_view(request):
+    user = request.user
+    if isinstance(user, AnonymousUser):
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    conversations = Conversation.objects.filter(user=user).order_by("-updated_at")
+    serializer = ConversationSerializer(conversations, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def conversation_detail_view(request, id):
+    user = request.user
+    if isinstance(user, AnonymousUser):
+        return Response(
+            {"detail": "Authentication required."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        conversation = Conversation.objects.get(id=id, user=user)
+    except Conversation.DoesNotExist:
+        return Response(
+            {"detail": "Conversation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    serializer = ConversationSerializer(conversation)
+    return Response(serializer.data, status=status.HTTP_200_OK)
