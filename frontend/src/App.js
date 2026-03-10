@@ -1,24 +1,17 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import HomeScreen from './screens/HomeScreen';
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Routes>
+      <Route path="/" element={<HomeScreen />} />
+      <Route path="/login" element={<LoginScreen />} />
+      <Route path="/register" element={<RegisterScreen />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   );
 }
 
