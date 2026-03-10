@@ -106,7 +106,7 @@ The frontend is already configured to send API requests to the Django backend du
 2. Start the React frontend.
 3. Open `http://localhost:3000` in your browser.
 4. Register a new account or sign in.
-5. Create a conversation and send a topic to generate a Haiku.
+5. Create a conversation by clicking new chat on the upper left section and send a topic to generate a Haiku.
 
 ## Important Notes
 
